@@ -1,20 +1,53 @@
-pipeline{
-agent any
-stages{
-    stage('checkout code'){
-        checkout scm
+pipeline {
+    agent any
+    
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh "mvn clean install -Dmaven.test.skip=true"
+            }
+        }
+        
+        stage('Test Cases Execution') {
+            steps {
+                sh "mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install -Pcoverage-per-test"
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: 'target/*.war', allowEmptyArchive: true
+            }
+        }
+        
+        stage('Deployment') {
+            steps {
+                script {
+                    deploy adapters: [tomcat9(credentialsId: 'c964fce0-29f1-4968-873b-7989c39109bf', path: '', url: 'http://16.171.137.142:8090/')], contextPath: 'counterwebapp', war: 'target/*.war'
+                }
+            }
+        }
     }
-    stage('Build'){
-        sh "mvn clean install -Dmaven.test.skip=true"
+    
+    post {
+        always {
+            cleanWs()
+        }
+        
+        success {
+            echo 'Pipeline succeeded!'
+            // You can add additional success notifications or actions here
+        }
+        
+        failure {
+            echo 'Pipeline failed!'
+            // You can add additional failure notifications or actions here
+        }
     }
-    stage('Test Cases Execution'){
-        sh "mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install -Pcoverage-per-test"
-    }
-    stage('Archive Artifacts'){
-        archiveArtifacts artifacts: 'target/*.war'
-    }
-    stage('Deployment'){
-        deploy adapters: [tomcat9(credentialsId: 'c964fce0-29f1-4968-873b-7989c39109bf', path: '', url: 'http://16.171.137.142:8090/')], contextPath: 'counterwebapp', war: 'target/*.war'
-    }
-  }
 }
